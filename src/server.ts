@@ -4,18 +4,14 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import compression from 'compression';
 import dotenv from 'dotenv';
-import { connectDB } from './config/database';
 import routes from './routes';
-import { errorHandler, notFound } from './middleware';
+import { errorHandler, notFound, ensureDBConnection } from './middleware';
 
 // Load environment variables
 dotenv.config();
 
 // Create Express app
 const app: Application = express();
-
-// Connect to MongoDB (for serverless, connection is cached)
-connectDB();
 
 // Middleware
 app.use(helmet()); // Security headers
@@ -52,6 +48,9 @@ app.use(express.urlencoded({ extended: true })); // Parse URL-encoded data
 
 // Note: Static file serving removed for serverless deployment
 // Models should be served directly from Frontend/public or CDN
+
+// Ensure database connection before handling API requests (critical for serverless)
+app.use('/api', ensureDBConnection);
 
 // API Routes
 app.use('/api', routes);
