@@ -159,6 +159,26 @@ export const uploadVehicleModel = async (req: Request, res: Response): Promise<v
       return;
     }
 
+    // Check if running in serverless environment
+    const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NODE_ENV === 'production';
+
+    if (isServerless) {
+      // In serverless, files are in memory (req.file.buffer)
+      // For production, integrate cloud storage (AWS S3, Cloudinary, Vercel Blob, etc.)
+      res.status(501).json({
+        success: false,
+        message: 'File uploads require cloud storage integration in production environment',
+        info: 'Please integrate AWS S3, Cloudinary, or Vercel Blob for file storage',
+        file: {
+          originalName: req.file.originalname,
+          size: req.file.size,
+          mimetype: req.file.mimetype,
+        },
+      });
+      return;
+    }
+
+    // Local development - file saved to disk
     const modelUrl = `/models/${req.file.filename}`;
 
     res.json({

@@ -2,27 +2,38 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 
-// Path to frontend public directory
-const UPLOAD_DIR = path.join(__dirname, '../../..', 'Frontend', 'public', 'models');
+// Check if running in serverless environment (Vercel, AWS Lambda, etc.)
+const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NODE_ENV === 'production';
 
-// Ensure upload directory exists
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+// Storage configuration
+let storage: multer.StorageEngine;
+
+if (isServerless) {
+  // Use memory storage for serverless (files temporarily stored in memory)
+  // For production file uploads, use cloud storage like AWS S3, Cloudinary, or Vercel Blob
+  storage = multer.memoryStorage();
+} else {
+  // Local disk storage for development
+  const UPLOAD_DIR = path.join(__dirname, '../../..', 'Frontend', 'public', 'models');
+  
+  // Ensure upload directory exists (only in development)
+  if (!fs.existsSync(UPLOAD_DIR)) {
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  }
+
+  storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, UPLOAD_DIR);
+    },
+    filename: (req, file, cb) => {
+      // Generate unique filename
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+      const ext = path.extname(file.originalname);
+      const name = path.basename(file.originalname, ext);
+      cb(null, `${name}-${uniqueSuffix}${ext}`);
+    },
+  });
 }
-
-// Configure storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, UPLOAD_DIR);
-  },
-  filename: (req, file, cb) => {
-    // Generate unique filename
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    const name = path.basename(file.originalname, ext);
-    cb(null, `${name}-${uniqueSuffix}${ext}`);
-  },
-});
 
 // File filter - accept only .glb and .gltf files
 const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
